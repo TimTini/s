@@ -92,6 +92,7 @@ def getFeeds(t,limit,feed_session_id,rcmd_session_id=None,last_feed_id=None):
 
 
 def likeFeed(feed,cookie_string):
+    global cs
     url = 'https://feeds.shopee.vn/api/proxy/like'
     headers = createHeaders(csrftoken, cookie_string,'https://feeds.shopee.vn/')
     payload = {
@@ -101,10 +102,13 @@ def likeFeed(feed,cookie_string):
     response = session.request(
         "POST", url, headers=headers, data=json_stringify)
     data = response.json()
-    return data['msg']
+    if data['code'] == 0:
+        cs = cs + 1
+    return data['msg'] + f"({cs})"
 
 session = requests.Session()
 csrftoken = csrftoken_gen()
+cs = 0
 username = input("Input username:")
 password = getpass.getpass(prompt='Input password:') 
 def main():
@@ -117,7 +121,7 @@ def main():
                                for x, y in res_islogin.cookies.get_dict().items()])
     cookie_string = "csrftoken=" + csrftoken + "; " + new_cookie
     timestamp = str(int(datetime.timestamp(datetime.now()) * 1000))
-    limit = '6'
+    limit = '20'
     feed_session_id = str(int( datetime.timestamp(datetime.now()) * 1000)) + '_' + csrftoken_gen(40)
     rcmd_session_id = None
     last_feed_id    = None
