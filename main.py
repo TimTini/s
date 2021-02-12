@@ -169,8 +169,8 @@ def run(cookie_string, rf):
                                 for x, y in res_islogin.cookies.get_dict().items()])
             cookie_string_new = "csrftoken=" + csrftoken + "; " + new_cookie
             cookie_string = cookie_string_new
-        except:
-            print(error)
+        except Exception as e:
+            print(e)
         run(cookie_string, rf)
 
 
