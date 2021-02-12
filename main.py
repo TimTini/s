@@ -162,12 +162,15 @@ def run(cookie_string, rf):
         feed_main(cookie_string)
     except:
         rf = rf + 1
-        res_islogin = checkLoginSuccess()
-        print(res_islogin.content)
-        new_cookie = "; ".join([str(x)+"="+str(y)
-                            for x, y in res_islogin.cookies.get_dict().items()])
-        cookie_string = "csrftoken=" + csrftoken + "; " + new_cookie
-   
+        try:
+            res_islogin = checkLoginSuccess()
+            print(res_islogin.content)
+            new_cookie = "; ".join([str(x)+"="+str(y)
+                                for x, y in res_islogin.cookies.get_dict().items()])
+            cookie_string_new = "csrftoken=" + csrftoken + "; " + new_cookie
+            cookie_string = cookie_string_new
+        except:
+            print(error)
         run(cookie_string, rf)
 
 
