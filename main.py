@@ -118,16 +118,7 @@ cs = 0
 username = input("Input username:")
 password = getpass.getpass(prompt='Input password:')
 
-
-def main():
-    cookie_string = getInitCookies()
-    loginShopee(cookie_string)
-    inputOTP(cookie_string)
-    res_islogin = checkLoginSuccess()
-    print(res_islogin.content)
-    new_cookie = "; ".join([str(x)+"="+str(y)
-                            for x, y in res_islogin.cookies.get_dict().items()])
-    cookie_string = "csrftoken=" + csrftoken + "; " + new_cookie
+def feed_main(cookie_string):
     timestamp = str(int(datetime.timestamp(datetime.now()) * 1000))
     limit = '20'
     feed_session_id = str(int(datetime.timestamp(
@@ -149,17 +140,31 @@ def main():
         has_more = data['data']['has_more']
 
 
-def run(rf):
+
+def main():
+    cookie_string = getInitCookies()
+    loginShopee(cookie_string)
+    inputOTP(cookie_string)
+    res_islogin = checkLoginSuccess()
+    print(res_islogin.content)
+    new_cookie = "; ".join([str(x)+"="+str(y)
+                            for x, y in res_islogin.cookies.get_dict().items()])
+    cookie_string = "csrftoken=" + csrftoken + "; " + new_cookie
+    return cookie_string
+
+
+def run(cookie_string, rf):
     if rf != 0:
         print('Fail '+ str(rf) + ' times')
     if rf == 50:
         return
     try:
-        main()
+        feed_main(cookie_string)
     except:
         rf = rf + 1
         run(rf)
 
 
 if __name__ == '__main__':
-    run(0)
+    cookie_string= main()
+    run(cookie_string,0)
