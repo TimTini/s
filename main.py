@@ -162,7 +162,13 @@ def run(cookie_string, rf):
         feed_main(cookie_string)
     except:
         rf = rf + 1
-        run(rf)
+        res_islogin = checkLoginSuccess()
+        print(res_islogin.content)
+        new_cookie = "; ".join([str(x)+"="+str(y)
+                            for x, y in res_islogin.cookies.get_dict().items()])
+        cookie_string = "csrftoken=" + csrftoken + "; " + new_cookie
+   
+        run(cookie_string, rf)
 
 
 if __name__ == '__main__':
