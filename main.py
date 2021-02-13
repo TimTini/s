@@ -5,6 +5,7 @@ import json
 from datetime import datetime
 import time
 import getpass
+import os
 
 
 def csrftoken_gen(length=32):
@@ -47,8 +48,14 @@ def getInitCookies():
 
 
 def loginShopee(cookie_string):
-    headers = createHeaders(csrftoken, cookie_string)
-    payload = {
+    global username
+    global password
+    # Nhập username
+    username = input("Input username:")
+    # Nhập password
+    password = getpass.getpass(prompt='Input password:')
+    headers  = createHeaders(csrftoken, cookie_string)
+    payload  = {
         'username':   username,
         'password':   encrypt_SHA256(password),
         'support_whats_app':   True,
@@ -58,28 +65,44 @@ def loginShopee(cookie_string):
     url = "https://shopee.vn/api/v2/authentication/login"
     response = session.request(
         "POST", url, headers=headers, data=json_stringify)
-    return response.content
+    data = response.json()
+    
+    if data['error'] == 0:
+        return data
+    elif data['error'] == 35:
+        print('Mã xác minh của bạn sẽ được gửi bằng tin nhắn đến điện thoại của bạn.')
+        inputOTP(cookie_string)
+    else:
+        print('Đăng nhập KHÔNG thành công. Bạn vui lòng thử lại hoặc đăng nhập bằng cách khác nhé!')
+        loginShopee(cookie_string)
+    return data
 
 
 def inputOTP(cookie_string):
     vcode = input("Nhap ma OTP:")
     payload = {
-        'username':   username,
-        'otp':   vcode,
+        'username'   :   username,
+        'otp'        :   vcode,
         'support_ivs':   True,
     }
-    json_stringify = json.dumps(payload)
-    headers = createHeaders(csrftoken, cookie_string)
-    url = "https://shopee.vn/api/v2/authentication/vcode_login"
-    response = session.request(
+    json_stringify  = json.dumps(payload)
+    headers         = createHeaders(csrftoken, cookie_string)
+    url             = "https://shopee.vn/api/v2/authentication/vcode_login"
+    response        = session.request(
         "POST", url, headers=headers, data=json_stringify)
-    return response.content
+    data            = response.json()
+    if data['error'] != 0:
+        print('Mã xác nhận không đúng, bạn vui lòng đăng nhập lại.')
+        loginShopee(cookie_string)
+    return data
 
 
-def checkLoginSuccess():
+def getCookieShopeeMall():
     res = session.request(
         "GET", "https://mall.shopee.vn/api/v2/user/login_status")
-    return res
+    new_cookie = "; ".join([str(x)+"="+str(y)
+                            for x, y in res.cookies.get_dict().items()])
+    return "csrftoken=" + csrftoken + "; " + new_cookie
 
 
 def getFeeds(t, limit, feed_session_id, rcmd_session_id=None, last_feed_id=None):
@@ -109,14 +132,19 @@ def likeFeed(feed, cookie_string):
     data = response.json()
     if data['code'] == 0:
         cs = cs + 1
-    return data['msg'] + f"({cs})"
+    print(data['msg'] + f"({cs})")
+    return data
 
 
 session = requests.Session()
 csrftoken = csrftoken_gen()
+last_like_feed = 0
+# biến đến số lượt thành công
 cs = 0
-username = input("Input username:")
-password = getpass.getpass(prompt='Input password:')
+# username
+username = ''
+# password
+password = ''
 
 def feed_main(cookie_string):
     timestamp = str(int(datetime.timestamp(datetime.now()) * 1000))
@@ -132,25 +160,44 @@ def feed_main(cookie_string):
         feeds = data['data']['list']
         for feed in feeds:
             if feed['content']['is_like'] == False:
-                print(likeFeed(feed, cookie_string))
-                time.sleep(6)
+                setTimeSleep()
+                likeFeed(feed, cookie_string)
+            if feed['header']['info']['is_follow'] == False:
+                followShop(cookie_string,feed['header']['info']['shop_id'])
+                # data.list[1].header.info.shop_id
+            # data.list[1].header.info.is_follow
         rcmd_session_id = str(data['data']['rcmd_session_id'])
         last_feed_id = str(feed['feed_id'])
         feed = None
         has_more = data['data']['has_more']
 
 
+def followShop(cookie_string,shopid):
+    url = "https://shopee.vn/api/v4/shop/follow"
+    headers = createHeaders(csrftoken,cookie_string,'https://shopee.vn/shop/' + str(shopid))
+    payload = {
+        'shopid': shopid,
+    }
+    json_stringify = json.dumps(payload)
+    response = session.request(
+        "POST", url, headers=headers, data=json_stringify)
+    data = response.json()
+    if data['error'] == 0:
+        print('Followed shopid ' + shopid)
+    return data
+
+
+def setTimeSleep():
+    global last_like_feed
+    if datetime.timestamp(datetime.now) - last_like_feed < 6:
+        time.sleep(6 - datetime.timestamp(datetime.now) - last_like_feed)
+    last_like_feed = datetime.timestamp(datetime.now)
 
 def main():
     cookie_string = getInitCookies()
     loginShopee(cookie_string)
-    inputOTP(cookie_string)
-    res_islogin = checkLoginSuccess()
-    print(res_islogin.content)
-    new_cookie = "; ".join([str(x)+"="+str(y)
-                            for x, y in res_islogin.cookies.get_dict().items()])
-    cookie_string = "csrftoken=" + csrftoken + "; " + new_cookie
-    return cookie_string
+    cookie_string = getCookieShopeeMall()
+    run(cookie_string,0)
 
 
 def run(cookie_string, rf):
@@ -163,11 +210,7 @@ def run(cookie_string, rf):
     except:
         rf = rf + 1
         try:
-            res_islogin = checkLoginSuccess()
-            print(res_islogin.content)
-            new_cookie = "; ".join([str(x)+"="+str(y)
-                                for x, y in res_islogin.cookies.get_dict().items()])
-            cookie_string_new = "csrftoken=" + csrftoken + "; " + new_cookie
+            cookie_string_new = getCookieShopeeMall()
             cookie_string = cookie_string_new
         except Exception as e:
             print(e)
@@ -175,5 +218,5 @@ def run(cookie_string, rf):
 
 
 if __name__ == '__main__':
-    cookie_string= main()
-    run(cookie_string,0)
+    main()
+    
