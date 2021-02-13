@@ -91,7 +91,7 @@ def inputOTP(cookie_string):
     response        = session.request(
         "POST", url, headers=headers, data=json_stringify)
     data            = response.json()
-    if data['error'] != 0:
+    if data['error'] != None:
         print('Mã xác nhận không đúng, bạn vui lòng đăng nhập lại.')
         loginShopee(cookie_string)
     return data
@@ -100,6 +100,7 @@ def inputOTP(cookie_string):
 def getCookieShopeeMall():
     res = session.request(
         "GET", "https://mall.shopee.vn/api/v2/user/login_status")
+    print(res.json())
     new_cookie = "; ".join([str(x)+"="+str(y)
                             for x, y in res.cookies.get_dict().items()])
     return "csrftoken=" + csrftoken + "; " + new_cookie
@@ -164,8 +165,6 @@ def feed_main(cookie_string):
                 likeFeed(feed, cookie_string)
             if feed['header']['info']['is_follow'] == False:
                 followShop(cookie_string,feed['header']['info']['shop_id'])
-                # data.list[1].header.info.shop_id
-            # data.list[1].header.info.is_follow
         rcmd_session_id = str(data['data']['rcmd_session_id'])
         last_feed_id = str(feed['feed_id'])
         feed = None
@@ -189,9 +188,9 @@ def followShop(cookie_string,shopid):
 
 def setTimeSleep():
     global last_like_feed
-    if datetime.timestamp(datetime.now) - last_like_feed < 6:
-        time.sleep(6 - (datetime.timestamp(datetime.now) - last_like_feed))
-    last_like_feed = datetime.timestamp(datetime.now)
+    if datetime.timestamp(datetime.now()) - last_like_feed < 6:
+        time.sleep(6 - (datetime.timestamp(datetime.now()) - last_like_feed))
+    last_like_feed = datetime.timestamp(datetime.now())
 
 def main():
     cookie_string = getInitCookies()
@@ -207,13 +206,14 @@ def run(cookie_string, rf):
         return
     try:
         feed_main(cookie_string)
-    except:
+    except Exception as e:
+        print(e)
         rf = rf + 1
         try:
             cookie_string_new = getCookieShopeeMall()
             cookie_string = cookie_string_new
-        except Exception as e:
-            print(e)
+        except Exception as ee:
+            print(ee)
         run(cookie_string, rf)
 
 
