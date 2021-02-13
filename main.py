@@ -174,10 +174,11 @@ def feed_main(cookie_string):
 def followShop(cookie_string,shopid):
     url = "https://shopee.vn/api/v4/shop/follow"
     headers = createHeaders(csrftoken,cookie_string,'https://shopee.vn/shop/' + str(shopid))
-    payload = {
-        'shopid': shopid,
-    }
-    json_stringify = json.dumps(payload)
+    # payload = {
+    #     'shopid': int(shopid),
+    # }
+    # json_stringify = json.dumps(payload)
+    json_stringify = '{"shopid": '+ str(shopid) +'}'
     response = session.request(
         "POST", url, headers=headers, data=json_stringify)
     data = response.json()
