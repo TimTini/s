@@ -190,7 +190,7 @@ def followShop(cookie_string,shopid):
 def setTimeSleep():
     global last_like_feed
     if datetime.timestamp(datetime.now) - last_like_feed < 6:
-        time.sleep(6 - datetime.timestamp(datetime.now) - last_like_feed)
+        time.sleep(6 - (datetime.timestamp(datetime.now) - last_like_feed))
     last_like_feed = datetime.timestamp(datetime.now)
 
 def main():
