@@ -64,7 +64,7 @@ def createHeaders(csrftoken, cookies, referer='https://shopee.vn/buyer/login/'):
         'x-requested-with': 'XMLHttpRequest',
         'x-shopee-language': 'vi',
         'referer': referer,
-        'cookie': cookies,
+        # 'cookie': cookies,
     }
     return headers
 
@@ -165,7 +165,7 @@ def getCookieShopeeMall():
     if has_cookie:
         print(f'Bạn đang đăng nhập tài khoản [{data["data"]["username"]}]')
         new_account = input('Bạn có muốn đăng nhập tài khoản khác? [Y/N]:')
-        if new_account.lower == 'y':
+        if str.lower(new_account) == 'y':
             has_cookie = False
             return ''
     new_cookie = "; ".join([str(x)+"="+str(y)
@@ -274,6 +274,8 @@ def main():
         loginShopee(cookie_string)
     cookie_string = getCookieShopeeMall()
     if cookie_string == '':
+        global session
+        session = requests.Session()
         main()
     
     save_cookies(cookie_str_fn,csrftoken + '\n' + cookie_string)
