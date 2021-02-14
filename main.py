@@ -64,7 +64,7 @@ def createHeaders(csrftoken, cookies, referer='https://shopee.vn/buyer/login/'):
         'x-requested-with': 'XMLHttpRequest',
         'x-shopee-language': 'vi',
         'referer': referer,
-        # 'cookie': cookies,
+        'cookie': cookies,
     }
     return headers
 
