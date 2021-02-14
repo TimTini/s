@@ -1,4 +1,4 @@
-import requests
+import requests,pickle
 import random
 import hashlib
 import json
@@ -20,6 +20,38 @@ def encrypt_SHA256(password):
     return sha_signature
 
 
+def save_cookies(filename,cookies,is_str = True):
+    # os.path.dirname(__file__)
+    if is_str:
+        with open(os.path.dirname(__file__) + '\\' + cookie_str_fn,'w') as file: 
+            file.write(cookies)
+    else:
+        with open(os.path.dirname(__file__) + '\\' + cookie_ses_fn,'wb') as file: 
+            pickle.dump(cookies, file)
+
+def load_cookies(is_str = True):
+    try:
+        global csrftoken
+        # os.path.dirname(__file__)
+        if is_str:
+            with open(os.path.dirname(__file__) + '\\' + cookie_str_fn,'r') as file:
+                csrftoken_old = file.readline().replace('\n','')
+                cookies_str = file.readline()
+                if(csrftoken_old != '' and len(csrftoken_old) == 32):
+                    csrftoken = csrftoken_old
+                    return cookies_str
+        else:
+            with open(os.path.dirname(__file__) + '\\' + cookie_ses_fn,'rb') as file:
+                if file != '':
+                    # load cookies and do a request
+                    # requests.get(  url, cookies=load_cookies(filename))
+                    return pickle.load(file)
+        return ''
+    except Exception as e:
+        print(e)
+        return ''
+        
+
 def createHeaders(csrftoken, cookies, referer='https://shopee.vn/buyer/login/'):
     headers = {
         'content-type': 'application/json',
@@ -38,12 +70,33 @@ def createHeaders(csrftoken, cookies, referer='https://shopee.vn/buyer/login/'):
 
 
 def getInitCookies():
+    global has_cookie
+    cookie_string = ''
+    cookie_ses    = ''
+    # lấy cookie củ (nếu có)
+    cookie_string_old = load_cookies()
+    if cookie_string_old != '':
+        cookie_string = cookie_string_old
+    else:
+        has_cookie = False
+    
+    cookie_ses = load_cookies(False)
+    if cookie_ses != '':
+        session.cookies.update(cookie_ses)
+    else:
+        has_cookie = False
+    # Nếu có cookie củ thì dùng
+    if has_cookie:
+        return cookie_string
+    # Không có thì lấy cookie mới
     headers = createHeaders(csrftoken, "csrftoken=" + csrftoken)
     response = session.request(
-        'POST', 'https://shopee.vn/api/v2/authentication/get_active_login_page', headers=headers)
+        'POST', 'https://shopee.vn/api/v2/authentication/get_active_login_page', headers=headers, cookies=load_cookies(False))
     cookie_string = "; ".join([str(x)+"="+str(y)
-                               for x, y in response.cookies.get_dict().items()])
+                            for x, y in response.cookies.get_dict().items()])
     cookie_string = "csrftoken=" + csrftoken + "; " + cookie_string
+    save_cookies(cookie_str_fn,csrftoken + '\n' + cookie_string)
+    save_cookies(cookie_ses_fn,session.cookies,False)
     return cookie_string
 
 
@@ -51,9 +104,9 @@ def loginShopee(cookie_string):
     global username
     global password
     # Nhập username
-    username = input("Input username:")
+    username = input("Nhập tài khoản:")
     # Nhập password
-    password = getpass.getpass(prompt='Input password:')
+    password = getpass.getpass(prompt='Nhập mật khẩu:')
     headers  = createHeaders(csrftoken, cookie_string)
     payload  = {
         'username':   username,
@@ -98,9 +151,23 @@ def inputOTP(cookie_string):
 
 
 def getCookieShopeeMall():
+    global has_cookie
+    global username
     res = session.request(
         "GET", "https://mall.shopee.vn/api/v2/user/login_status")
-    print(res.json())
+    data = res.json()
+    print(data)
+    # Nếu khong lay duọc data thì cookie dang sai
+    if data['error'] != 0:
+        # lấy lại cookie
+        has_cookie = False
+        return ''
+    if has_cookie:
+        print(f'Bạn đang đăng nhập tài khoản [{data["data"]["username"]}]')
+        new_account = input('Bạn có muốn đăng nhập tài khoản khác? [Y/N]:')
+        if new_account.lower == 'y':
+            has_cookie = False
+            return ''
     new_cookie = "; ".join([str(x)+"="+str(y)
                             for x, y in res.cookies.get_dict().items()])
     return "csrftoken=" + csrftoken + "; " + new_cookie
@@ -140,6 +207,13 @@ def likeFeed(feed, cookie_string):
 session = requests.Session()
 csrftoken = csrftoken_gen()
 last_like_feed = 0
+# Xem co ton tai cookie chưa
+has_cookie = True
+# tên file chưa cookie
+cookie_str_fn = 'cookies_str.txt'
+cookie_ses_fn = 'cookies_ses.txt'
+# số lượt chạy thất bại
+rf = 0
 # biến đến số lượt thành công
 cs = 0
 # username
@@ -194,13 +268,21 @@ def setTimeSleep():
     last_like_feed = datetime.timestamp(datetime.now())
 
 def main():
+    # khơit tạo cookie
     cookie_string = getInitCookies()
-    loginShopee(cookie_string)
+    if has_cookie != True:
+        loginShopee(cookie_string)
     cookie_string = getCookieShopeeMall()
-    run(cookie_string,0)
+    if cookie_string == '':
+        main()
+    
+    save_cookies(cookie_str_fn,csrftoken + '\n' + cookie_string)
+    save_cookies(cookie_ses_fn,session.cookies,False)
+    run(cookie_string)
 
 
-def run(cookie_string, rf):
+def run(cookie_string):
+    global rf
     if rf != 0:
         print('Fail '+ str(rf) + ' times')
     if rf == 50:
@@ -212,10 +294,12 @@ def run(cookie_string, rf):
         rf = rf + 1
         try:
             cookie_string_new = getCookieShopeeMall()
+            if cookie_string_new == '':
+                main()
             cookie_string = cookie_string_new
         except Exception as ee:
             print(ee)
-        run(cookie_string, rf)
+        run(cookie_string)
 
 
 if __name__ == '__main__':
