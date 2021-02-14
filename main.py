@@ -275,7 +275,7 @@ def main():
     cookie_string = getCookieShopeeMall()
     if cookie_string == '':
         global session
-        session = requests.Session()
+        # session = requests.Session()
         main()
     
     save_cookies(cookie_str_fn,csrftoken + '\n' + cookie_string)
